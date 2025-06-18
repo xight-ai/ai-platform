@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>视光AI平台</title>
+    <!-- 引入 pako 库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.4/pako.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+            background-color: #343a40;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 50; /* 提高header层级 */
+        }
+
+        .welcome {
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .right-side {
+            display: flex;
+            align-items: center;
+        }
+
+        .custom-select {
+            position: relative;
+            margin-right: 15px;
+        }
+
+        .select-header {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            background-color: #6c7c7d;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .select-header:hover {
+            background-color: #5a6268;
+        }
+
+        .select-options {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            border: none;
+            border-radius: 4px;
+            background-color: white;
+            width: 200px;
+            max-height: 250px;
+            overflow-y: auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 100; /* 确保下拉框在最上层 */
+        }
+
+        .select-options label {
+            display: block;
+            padding: 10px 15px;
+            color: black;
+            transition: background-color 0.3s ease;
+        }
+
+        .select-options label:hover {
+            background-color: #f8f9fa;
+        }
+
+        .select-options input[type="checkbox"] {
+            margin-right: 10px;
+        }
+
+        .copy-button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            background-color: #28a745;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .copy-button:hover {
+            background-color: #218838;
+        }
+
+        /* 添加登出按钮样式 */
+        .logout-button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            background-color: #dc3545;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-left: 15px;
+        }
+
+        .logout-button:hover {
+            background-color: #c82333;
+        }
+
+        /* 两栏布局容器 */
+        .content-container {
+            display: flex;
+            margin: 30px;
+            height: calc(100vh - 150px); /* 减去header高度和边距 */
+            border-radius: 4px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            position: relative;
+            z-index: 10; /* 降低内容区域层级 */
+        }
+
+        /* 左侧容器 */
+        .left-container {
+            flex: 7; /* 占据70%宽度 */
+            display: flex;
+            position: relative;
+        }
+
+        /* 左侧边栏 */
+        .sidebar {
+            width: 250px;
+            background-color: #f0f2f5;
+            border-right: 1px solid #e9ecef;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            z-index: 10;
+            overflow-y: auto;
+        }
+
+        /* 边栏展开状态 */
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        /* 边栏内容 */
+        .sidebar-content {
+            padding: 15px;
+        }
+
+        /* 边栏按钮 */
+        .sidebar-button {
+            display: block;
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 4px;
+            background-color: #4c6ef5;
+            color: white;
+            font-size: 15px;
+            text-align: left;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .sidebar-button:hover {
+            background-color: #3b5bdb;
+        }
+
+        /* 边栏标题 */
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #343a40;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        /* 边栏展开/收起按钮 */
+        .toggle-sidebar {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            width: 25px;
+            height: 50px;
+            background-color: #4c6ef5;
+            color: white;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            z-index: 15;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s ease;
+        }
+
+        .toggle-sidebar:hover {
+            background-color: #3b5bdb;
+        }
+
+        /* 边栏展开状态下的按钮样式 */
+        .sidebar.open + .toggle-sidebar {
+            left: 250px;
+        }
+
+        /* 左侧iframe容器 */
+        .left-column {
+            flex: 1;
+            background-color: white;
+            position: relative;
+            transition: margin-left 0.3s ease;
+            z-index: 5; /* 降低iframe容器层级 */
+        }
+
+        /* 右侧显示框容器 */
+        .right-column {
+            flex: 3; /* 占据30%宽度 */
+            background-color: #f8f9fa;
+            border-left: 1px solid #e9ecef;
+            overflow-y: auto;
+            padding: 15px;
+            box-sizing: border-box;
+            z-index: 5; /* 降低右侧栏层级 */
+        }
+
+        /* 右侧显示框标题 */
+        .right-column h3 {
+            margin-top: 0;
+            color: #343a40;
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 10px;
+        }
+
+        /* 右侧显示框内容区域 */
+        .display-content {
+            margin-top: 15px;
+            color: #495057;
+            line-height: 1.6;
+        }
+
+        /* 右侧显示框中的项目 */
+        .display-item {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .display-item h4 {
+            margin-top: 0;
+            color: #212529;
+        }
+
+        /* iframe样式 */
+        .left-column iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            z-index: 1; /* 降低iframe层级 */
+        }
+
+        /* 响应式设计：在小屏幕上转为垂直布局 */
+        @media (max-width: 768px) {
+            .content-container {
+                flex-direction: column;
+                height: auto;
+            }
+            .left-container, .right-column {
+                flex: 1;
+                width: 100%;
+            }
+            .right-column {
+                border-left: none;
+                border-top: 1px solid #e9ecef;
+            }
+
+            .sidebar {
+                width: 200px;
+            }
+
+            .sidebar.open + .toggle-sidebar {
+                left: 200px;
+            }
+        }
+
+        /* 边栏加载状态样式 */
+        .sidebar-loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(240, 242, 245, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .sidebar-loading.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .sidebar-loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e9ecef;
+            border-top: 4px solid #4c6ef5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .sidebar-loading-text {
+            margin-top: 15px;
+            color: #495057;
+            font-size: 14px;
+            text-align: center;
+            padding: 0 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 内容联想结果显示框 */
+        .association-result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+
+        .association-result h4 {
+            margin-top: 0;
+            color: #4c6ef5;
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 10px;
+        }
+
+        .association-result ul {
+            padding-left: 20px;
+            margin: 0;
+        }
+
+        .association-result ul li {
+            margin-bottom: 8px;
+        }
+
+        /* 按钮加载状态 */
+        .sidebar-button.loading {
+            position: relative;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .sidebar-button.loading::after {
+            content: '';
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body>
+<div class="header">
+    <div class="welcome">欢迎，<span th:text="${username}"></span>
+        <!-- 登出按钮 -->
+        <button class="logout-button" id="logout-button" onclick="logout()">登出</button>
+    </div>
+
+    <div class="right-side">
+        <div class="custom-select">
+            <div class="select-header" onclick="toggleOptions(this)">请先选择要使用的知识库</div>
+            <div class="select-options" id="select-options"></div>
+        </div>
+        <button class="copy-button" th:data-userid="${userId}" onclick="getSelectedOptions(this)">
+            保存选择并复制知识库id
+        </button>
+    </div>
+</div>
+
+<!-- 两栏布局容器 -->
+<div class="content-container">
+    <!-- 左侧容器 -->
+    <div class="left-container">
+        <!-- 左侧边栏 -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <h3 class="sidebar-title">功能菜单</h3>
+                <button class="sidebar-button" id="content-association-btn">
+                    <i class="fa fa-lightbulb-o" style="margin-right: 8px;"></i>内容联想
+                </button>
+
+                <div class="sidebar-info" style="margin-top: 30px; padding: 15px; background-color: #e9ecef; border-radius: 4px;">
+                    <h4>内容联想功能</h4>
+                    <p>点击"内容联想"按钮，系统将基于当前对话内容，为您提供相关的视光知识和建议。</p>
+                </div>
+            </div>
+            <!-- 边栏加载状态 -->
+            <div class="sidebar-loading" id="sidebar-loading">
+                <div class="sidebar-loading-spinner"></div>
+                <div class="sidebar-loading-text">
+                    <p>正在分析对话内容...</p>
+                    <p>请稍候，内容联想功能正在处理中</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 边栏展开/收起按钮 -->
+        <button class="toggle-sidebar" id="toggle-sidebar">
+            <i class="fa fa-chevron-right"></i>
+        </button>
+
+        <!-- 左侧iframe -->
+        <div class="left-column">
+            <iframe
+                    id="chat-iframe"
+                    th:src="${difyAppUrl}"
+                    frameborder="0"
+                    allow="microphone">
+            </iframe>
+        </div>
+    </div>
+
+    <!-- 右侧显示框 -->
+    <div class="right-column">
+        <h3>开放AI平台回答</h3>
+        <div class="display-content">
+
+
+            <div class="display-item">
+                <h4>使用提示</h4>
+                <p>这里会显示开放AI平台的回答</p>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript" th:inline="javascript">
+    // 封装函数用于更新 iframe 的 src 属性
+    function updateIframeSrc(userId, selectedText, baseUrl) {
+        const orgString = userId + ',' + selectedText;
+        const encoder = new TextEncoder();
+        const utf8_bytes = encoder.encode(orgString);
+
+        const compressed = pako.gzip(utf8_bytes);
+
+        const base64_encoded = btoa(String.fromCharCode.apply(null, compressed));
+
+        const url_encoded = encodeURIComponent(base64_encoded);
+
+        const iframe = document.getElementById('chat-iframe');
+        const newParams = `sys.user_id=${url_encoded}`;
+        iframe.src = `${baseUrl}?${newParams}`;
+        console.log(iframe.src);
+    }
+
+
+    // 切换边栏显示状态
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('toggle-sidebar');
+        const chevron = toggleBtn.querySelector('i');
+
+        sidebar.classList.toggle('open');
+
+        if (sidebar.classList.contains('open')) {
+            chevron.classList.remove('fa-chevron-right');
+            chevron.classList.add('fa-chevron-left');
+        } else {
+            chevron.classList.remove('fa-chevron-left');
+            chevron.classList.add('fa-chevron-right');
+        }
+    }
+
+    // 显示边栏加载状态
+    function showSidebarLoading() {
+        const sidebarLoading = document.getElementById('sidebar-loading');
+        const contentAssociationBtn = document.getElementById('content-association-btn');
+
+        sidebarLoading.classList.add('active');
+        contentAssociationBtn.classList.add('loading');
+
+        // 禁用边栏按钮
+        const sidebarButtons = document.querySelectorAll('.sidebar-button');
+        sidebarButtons.forEach(button => {
+            button.disabled = true;
+        });
+    }
+
+    // 隐藏边栏加载状态
+    function hideSidebarLoading() {
+        const sidebarLoading = document.getElementById('sidebar-loading');
+        const contentAssociationBtn = document.getElementById('content-association-btn');
+
+        sidebarLoading.classList.remove('active');
+        contentAssociationBtn.classList.remove('loading');
+
+        // 启用边栏按钮
+        const sidebarButtons = document.querySelectorAll('.sidebar-button');
+        sidebarButtons.forEach(button => {
+            button.disabled = false;
+        });
+    }
+
+    // 模拟内容联想结果
+    function simulateAssociationResult() {
+        const resultContainer = document.getElementById('association-result');
+
+        // 这里应该是实际的内容联想结果
+        // 为了演示，使用模拟数据
+        const sampleResults = [
+            "根据您的问题，建议考虑以下视光知识：",
+            "1. 近视防控的关键时期是青少年阶段",
+            "2. 长时间使用电子设备时应注意眼睛休息",
+            "3. 定期进行视力检查是预防视力问题的重要措施",
+            "4. 适当的户外活动对预防近视有积极作用",
+            "5. 保持正确的读写姿势有助于保护视力"
+        ];
+
+        let html = `
+            <h4>内容联想结果</h4>
+            <ul>
+        `;
+
+        sampleResults.forEach(result => {
+            html += `<li>${result}</li>`;
+        });
+
+        html += `</ul>`;
+
+        resultContainer.innerHTML = html;
+    }
+
+    // 内容联想功能
+    function contentAssociation() {
+        // 显示边栏加载状态
+        showSidebarLoading();
+
+        // 这里可以实现内容联想的具体逻辑
+        // 例如：获取当前聊天内容，分析后提供相关建议
+
+        // 模拟网络请求延迟
+        setTimeout(() => {
+            // 隐藏边栏加载状态
+            hideSidebarLoading();
+
+            // 显示联想结果
+            simulateAssociationResult();
+
+            // 显示成功提示
+            alert('内容联想完成！\n已为您提供相关视光知识和建议。');
+
+            // 向iframe发送消息
+            const iframe = document.getElementById('chat-iframe');
+            if (iframe.contentWindow) {
+                iframe.contentWindow.postMessage({
+                    type: 'content-association',
+                    action: 'completed'
+                }, '*');
+            }
+        }, 2000); // 模拟2秒的加载时间
+    }
+
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // 加载Font Awesome
+        const fontAwesomeScript = document.createElement('script');
+        fontAwesomeScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css';
+        document.head.appendChild(fontAwesomeScript);
+
+        fetch('/api/getMyWikis')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const optionsContainer = document.getElementById('select-options');
+                data.forEach(option => {
+                    const label = document.createElement('label');
+                    const checkbox = document.createElement('input');
+
+                    checkbox.type = 'checkbox';
+                    checkbox.value = option.wikiId;
+                    checkbox.checked = option.selected;
+                    checkbox.dataset.name = option.wikiName; // 存储wiki名称
+
+                    label.appendChild(checkbox);
+                    label.appendChild(document.createTextNode(option.wikiName));
+                    optionsContainer.appendChild(label);
+                });
+
+                // 页面加载完成后更新 iframe 的 src
+                const button = document.querySelector('.copy-button');
+                const userId = button.dataset.userid;
+                const checkboxes = document.querySelectorAll('.select-options input[type="checkbox"]');
+                const selectedOptions = [];
+                const selectedNames = [];
+                checkboxes.forEach(checkbox => {
+                    if (checkbox.checked) {
+                        selectedOptions.push(checkbox.value);
+                        selectedNames.push(checkbox.dataset.name);
+                    }
+                });
+                const selectedText = selectedOptions.join(',');
+                const baseUrl = [[${difyAppUrl}]];
+                updateIframeSrc(userId, selectedText, baseUrl);
+
+                // 更新右侧显示框
+                // updateSelectedWikisDisplay(selectedNames);
+            })
+            .catch(error => {
+                console.error('获取知识库选项时出错:', error);
+            });
+
+        // 监听页面点击事件
+        document.body.addEventListener('click', function (event) {
+            const selectOptions = document.querySelector('.select-options');
+            const selectHeader = document.querySelector('.select-header');
+            if (!selectHeader.contains(event.target) && !selectOptions.contains(event.target)) {
+                selectOptions.style.display = 'none';
+            }
+        });
+
+        // 绑定边栏切换事件
+        document.getElementById('toggle-sidebar').addEventListener('click', toggleSidebar);
+
+        // 绑定内容联想按钮事件
+        document.getElementById('content-association-btn').addEventListener('click', contentAssociation);
+    });
+
+    // 显示或隐藏下拉框
+    function toggleOptions(header) {
+        const options = header.nextElementSibling;
+        options.style.display = options.style.display === 'block' ? 'none' : 'block';
+    }
+
+    // 点击保存按钮
+    async function getSelectedOptions(button) {
+        const userId = button.dataset.userid;
+        console.log('User ID:', userId);
+        const checkboxes = document.querySelectorAll('.select-options input[type="checkbox"]');
+        const selectedOptions = [];
+        const selectedNames = [];
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                selectedOptions.push(checkbox.value);
+                selectedNames.push(checkbox.dataset.name);
+            }
+        });
+        const selectedText = selectedOptions.join(',');
+
+        fetch(`/api/saveMyWikiOptions?wikiIds=${selectedText}`, {
+            method: 'POST'
+        })
+            .then(response => {
+                if (response.ok) {
+                    console.log("选择已保存")
+                } else {
+                    console.log("保存失败")
+                }
+            })
+            .catch(error => {
+                console.error('保存选择时出错:', error);
+            });
+
+        try {
+            if (navigator.clipboard) {
+                await navigator.clipboard.writeText(selectedText);
+                alert('复制成功');
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = selectedText;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = 0;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('复制成功');
+            }
+        } catch (err) {
+            console.error('复制时出错:', err);
+            alert('复制失败');
+        }
+
+        // 更新 iframe 的 src 属性
+        const baseUrl = [[${difyAppUrl}]];
+        updateIframeSrc(userId, selectedText, baseUrl);
+
+        // 更新右侧显示框
+        // updateSelectedWikisDisplay(selectedNames);
+    }
+
+    function logout() {
+        fetch('/logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+        })
+            .then(response => {
+                if (response.ok) {
+                    alert('你已登出');
+                    window.location.href = '/login';
+                } else {
+                    alert('登出失败');
+                }
+            })
+            .catch(error => {
+                console.error('登出请求出错:', error);
+                alert('登出失败');
+            });
+    }
+</script>
+</body>
+</html>

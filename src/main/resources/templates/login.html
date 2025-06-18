@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞书登录页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+
+        .login-container {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .login-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 3px;
+            background-color: #007AFF;
+            color: white;
+            cursor: pointer;
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-button img {
+            width: 20px;
+            height: 20px;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+
+<body>
+<!-- 隐藏的元素，用于存储 callbackUrl -->
+<div id="callback-url" th:attr="data-url=${authorizeUrl}" style="display: none;"></div>
+<div class="login-container">
+    <!--    <h2>使用飞书登录</h2>-->
+    <button class="login-button"  onclick=redirectToCallback()>
+        <img th:src="@{/images/feishu_logo.png}" alt="飞书图标">
+        使用飞书登录
+    </button>
+
+    <script>
+        function redirectToCallback() {
+            window.location.href = document.getElementById('callback-url').getAttribute('data-url');
+        }
+    </script>
+</div>
+</body>

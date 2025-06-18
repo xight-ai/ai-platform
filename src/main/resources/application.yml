@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: AIPlatform
+  redis:
+    host: your_redis_address
+    port: your_redis_port
+
+feishu:
+  appId: your_feishu_appid
+  appSecret: your_feishu_appSecret
+  # 导出路径
+  exportPath: your_path
+  # 文件存储类型
+  docSaveType: docx
+
+  openApiEndPoint: https://open.feishu.cn
+
+  redirectUri: your_feishu_redirectUri
+  authorizeUrl: your_feishu_authorizeUrl
+
+dify:
+  baseUrl: your_dify_url
+  appUrl: your_dify_appUrl
+  apikey: your_dify_apikey
+  supportFiletype: TXT,MARKDOWN,MDX,PDF,HTML,XLSX,XLS,DOCX,CSV,MD,HTM
+
+ragflow:
+  baseUrl: your_ragflow_url
+  apiKey: your_ragflow_apikey
+  pageSize: 100
+  retrieveChunkTopN: 10
